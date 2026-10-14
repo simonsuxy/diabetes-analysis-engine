@@ -126,7 +126,6 @@ class Ingestor:
 
 if __name__ == "__main__":
     ingestor = Ingestor(filepath=r"C:\Users\ninja\Documents\code\diabetes-analysis\data\test.csv")
-
     print(f"Successfully loaded and parsed data!")
     print(f"CGM Readings extracted: {len(ingestor.cgm_data)}")
     print(f"Event Triggers extracted: {len(ingestor.event_data)}")
