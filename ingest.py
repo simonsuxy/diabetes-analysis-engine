@@ -11,6 +11,29 @@ HEADER_START = "Index;Date;Time"
 
 #TODO metadata parser
 
+def parse_section(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.replace("", pd.NA)
+
+    #combines date and time columns into a single "Timestamp"
+    if "Date" in df.columns and "Time" in df.columns:
+        df["Timestamp"] = pd.to_datetime(
+            df["Date"] + " " + df["Time"],
+            format="%Y-%m-%d %H:%M:%S"
+        )
+    #converts ',' in numbers to '.' (ex: 3,14 => 3.14)
+    for col in df.columns:
+        if col in {"Index", "Date", "Time", "Timestamp"}:
+            continue
+        conv = pd.to_numeric(
+            df[col].astype(str).str.replace(",", ".", regex=False),
+        )
+        # apply conversion only if all non-null entries convert cleanly
+        if conv.notna().sum() > 0 and conv.notna().sum() == df[col].notna().sum():
+            df[col] = conv
+
+    return df.dropna(axis=1, how="all")
+
+
 class Ingestor:
     def __init__(self, filepath, target_interval = 5):
         self.filepath = Path(filepath)
