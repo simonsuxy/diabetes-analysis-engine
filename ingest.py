@@ -129,8 +129,4 @@ if __name__ == "__main__":
     print(f"Successfully loaded and parsed data!")
     print(f"CGM Readings extracted: {len(ingestor.cgm_data)}")
     print(f"Event Triggers extracted: {len(ingestor.event_data)}")
-
-    print("\n--- Event Triggers Preview ---")
-    print(ingestor.event_data.head())
-    print("\n--- CGM Readings Preview ---")
-    print(ingestor.cgm_data.head())
+    

@@ -11,10 +11,10 @@ class MetricsCalculator:
 
         total_readings = len(self.glucose)
         mean_mmol = self.glucose.mean()
-        sd_mmol = self.glucose.std()
+        std_mmol = self.glucose.std()
 
         #coefficient of variation
-        cv_pct = (sd_mmol / mean_mmol) * 100 if mean_mmol > 0 else 0.0
+        cv_pct = (std_mmol / mean_mmol) * 100 if mean_mmol > 0 else 0.0
 
         # glucose management indicator (gmi)
         # https://pmc.ncbi.nlm.nih.gov/articles/PMC6196826/
@@ -30,7 +30,7 @@ class MetricsCalculator:
         return {
             "total_readings": total_readings,
             "mean_glucose_mmol": round(mean_mmol, 2),
-            "sd_mmol": round(sd_mmol, 2),
+            "sd_mmol": round(std_mmol, 2),
             "cv_percent": round(cv_pct, 1),
             "gmi_percent": round(gmi_pct, 2),
             "tir_very_low_pct": round(very_low_pct, 1),
