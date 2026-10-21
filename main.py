@@ -15,7 +15,7 @@ if __name__ == "__main__":
     print(analyzer.compute_daily_summary())
 
     # General 24-hour hourly alerts
-    hourly_alerts = analyzer.detect_specific_patters()
+    hourly_alerts = analyzer.detect_specific_patterns()
 
     if hourly_alerts:
         print(f"Found {len(hourly_alerts)} recurring pattern alerts:\n")

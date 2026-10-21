@@ -78,8 +78,9 @@ def extract_events_stream(parsed_sections: dict[str, pd.DataFrame]) -> pd.DataFr
 
 
 class Ingestor:
-    def __init__(self, filepath, target_interval=5):
-        self.filepath = Path(filepath)
+    def __init__(self, filepath = None, csv_content: str | bytes | None = None,target_interval=5):
+        self.filepath = Path(filepath) if filepath and isinstance(filepath, (str, Path)) else filepath
+        self.csv_content = csv_content
         self.target_interval = target_interval
         self.raw_data = self._load_raw_data()
         self.parsed_data = {
@@ -90,10 +91,24 @@ class Ingestor:
         self.cgm_data = extract_cgm_stream(self.parsed_data)
         self.event_data = extract_events_stream(self.parsed_data)
 
+    def _get_raw_text(self) -> str:
+        if self.csv_content is not None:
+            if isinstance(self.csv_content, bytes):
+                return self.csv_content.decode("utf-8")
+            return self.csv_content
+        if self.filepath is not None:
+            if hasattr(self.filepath, "read"):
+                content = self.filepath.read()
+                if isinstance(content, bytes):
+                    return content.decode("utf-8-sig")
+                return str(content)
+            return Path(self.filepath).read_text(encoding="utf-8-sig")
+        raise ValueError("No valid file path or string content found")
+
     def _load_raw_data(self) -> dict[str, pd.DataFrame]:
         out = {}
 
-        text = self.filepath.read_text(encoding='utf-8-sig')
+        text = self._get_raw_text()
         lines = text.splitlines()
         banners = [idx for idx, line in enumerate(lines) if line.startswith(SECTION_CSV_MARKER)]
 
@@ -129,4 +144,3 @@ if __name__ == "__main__":
     print(f"Successfully loaded and parsed data!")
     print(f"CGM Readings extracted: {len(ingestor.cgm_data)}")
     print(f"Event Triggers extracted: {len(ingestor.event_data)}")
-    

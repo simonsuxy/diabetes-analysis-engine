@@ -4,17 +4,19 @@ from typing import Dict, Any
 
 class PostBolusTrajectoryEngine:
     def __init__(self, cgm_df: pd.DataFrame, event_df: pd.DataFrame,
-                 glucose_col: str = "glucose_mmol", window_minutes: int = 180):
+                 glucose_col: str = "glucose_mmol", window_minutes: int = 180,
+                 target_low: float = 3.9, target_high: float = 10.0):
         self.cgm_df = cgm_df.dropna(subset=[glucose_col, "Timestamp"]).sort_values("Timestamp").copy()
         self.event_df = event_df.dropna(subset=["Timestamp"]).sort_values("Timestamp").copy()
         self.glucose_col = glucose_col
         self.window_minutes = window_minutes
+        self.target_low = target_low
+        self.target_high = target_high
 
-    @staticmethod
-    def _get_glucose_state(g: float) -> str:
-        if g < 3.9:
+    def _get_glucose_state(self, g: float) -> str:
+        if g < self.target_low:
             return "HYPO"
-        elif g > 10.0:
+        elif g > self.target_high:
             return "HYPER"
         else:
             return "TARGET"
@@ -73,39 +75,31 @@ class PostBolusTrajectoryEngine:
             start_state = self._get_glucose_state(g_baseline)
             end_state = self._get_glucose_state(g_180)
 
-            def state_transition_logic(min_g, max_g, start_state, end_state) -> tuple[str,float]:
+            def state_transition_logic(min_g, max_g, start_state, end_state) -> tuple[str, float]:
                 outcome = ""
                 adverse_impact = 0.0
-                if min_g < 3.9:
-                    # entered Hypo (target -> hypo OR hyper -> overcorrection hypo)
+                if min_g < self.target_low:
                     outcome = "HYPOGLYCEMIA_RISK"
-                    adverse_impact = round(3.9 - min_g, 2)  # depth into hypo (< 3.9)
+                    adverse_impact = round(self.target_low - min_g, 2)
                 elif start_state == "TARGET" and end_state == "HYPER":
-                    # target -> hyper
                     outcome = "UNDER_BOLUS_HIGH"
                     adverse_impact = round(max_g - g_baseline, 2)
                 elif start_state == "HYPER" and end_state == "HYPER" and delta_180 >= 0:
-                    # hyper -> hyper without drop
                     outcome = "PERSISTENT_UNCONTROLLED_HIGH"
                     adverse_impact = round(max_g - g_baseline, 2)
-                elif start_state == "TARGET" and max_g > 10.0 and end_state == "TARGET":
-                    # target -> spike -> recovered to target by 180m
+                elif start_state == "TARGET" and max_g > self.target_high and end_state == "TARGET":
                     outcome = "TIMING_MISMATCH_SPIKE"
                     adverse_impact = round(max_g - g_baseline, 2)
                 elif start_state == "HYPER" and end_state == "TARGET":
-                    # hyper -> target
                     outcome = "SUCCESSFUL_CORRECTION"
                     adverse_impact = 0.0
                 elif start_state == "HYPER" and end_state == "HYPER" and delta_180 < 0:
-                    # hyper -> lower hyper
                     outcome = "PARTIAL_CORRECTION"
                     adverse_impact = 0.0
                 else:
-                    # target -> target
                     outcome = "ON_TARGET"
                     adverse_impact = 0.0
                 return (outcome, adverse_impact)
-
             outcome, impact = state_transition_logic(min_g, max_g, start_state, end_state)
             trajectories.append({
                 "timestamp": t_bolus,

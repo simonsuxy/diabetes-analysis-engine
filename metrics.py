@@ -1,9 +1,12 @@
 import pandas as pd
 
 class MetricsCalculator:
-    def __init__(self, cgm_df: pd.DataFrame, glucose_col: str = "glucose_mmol"):
+    def __init__(self, cgm_df: pd.DataFrame, glucose_col: str = "glucose_mmol",
+                 target_low: float = 3.9, target_high: float = 10.0):
         self.cgm_df = cgm_df.dropna(subset=[glucose_col])
         self.glucose = self.cgm_df[glucose_col]
+        self.target_low = target_low
+        self.target_high = target_high
 
     def calculate_metrics(self):
         if self.glucose.empty:
@@ -22,9 +25,10 @@ class MetricsCalculator:
         gmi_pct = 3.31 + (0.43093 * mean_mmol)
 
         very_low_pct = (self.glucose < 3.0).sum() / total_readings * 100
-        low_pct = ((self.glucose >= 3.0) & (self.glucose < 3.9)).sum() / total_readings * 100
-        target_tir_pct = ((self.glucose >= 3.9) & (self.glucose <= 10.0)).sum() / total_readings * 100
-        high_pct = ((self.glucose > 10.0) & (self.glucose <= 13.9)).sum() / total_readings * 100
+        low_pct = ((self.glucose >= 3.0) & (self.glucose < self.target_low)).sum() / total_readings * 100
+        target_tir_pct = ((self.glucose >= self.target_low) & (
+                    self.glucose <= self.target_high)).sum() / total_readings * 100
+        high_pct = ((self.glucose > self.target_high) & (self.glucose <= 13.9)).sum() / total_readings * 100
         very_high_pct = (self.glucose > 13.9).sum() / total_readings * 100
 
         return {

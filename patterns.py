@@ -3,11 +3,14 @@ from typing import Dict, Any
 import pandas as pd
 
 class PatternAnalyzer:
-    def __init__(self, cgm_df: pd.DataFrame, glucose_col: str = "glucose_mmol"):
+    def __init__(self, cgm_df: pd.DataFrame, glucose_col: str = "glucose_mmol",
+                 target_low: float = 3.9, target_high: float = 10.0):
         self.df = cgm_df.dropna(subset=[glucose_col, "Timestamp"]).copy()
         self.glucose_col = glucose_col
         self.df["hour"] = self.df["Timestamp"].dt.hour
         self.df["day_name"] = self.df["Timestamp"].dt.day_name()
+        self.target_low = target_low
+        self.target_high = target_high
 
     def compute_hourly_summary(self) -> pd.DataFrame:
         hourly_records = []
@@ -20,10 +23,10 @@ class PatternAnalyzer:
             mean_mmol = sub.mean()
             std_mmol = sub.std()
 
-            hypo_pct = (sub < 3.9).sum() / count * 100
+            hypo_pct = (sub < self.target_low).sum() / count * 100
             severe_hypo_pct = (sub < 3.0).sum() / count * 100
-            target_pct = ((sub >= 3.9) & (sub <= 10.0)).sum() / count * 100
-            hyper_pct = (sub > 10.0).sum() / count * 100
+            target_pct = ((sub >= self.target_low) & (sub <= self.target_high)).sum() / count * 100
+            hyper_pct = (sub > self.target_high).sum() / count * 100
 
             hourly_records.append({
                 "hour": hour,
@@ -51,10 +54,10 @@ class PatternAnalyzer:
             mean_mmol = sub.mean()
             std_mmol = sub.std()
             cv_pct = (std_mmol / mean_mmol) * 100 if mean_mmol > 0 else 0.0
-            hypo_pct = (sub < 3.9).sum() / count * 100
+            hypo_pct = (sub < self.target_low).sum() / count * 100
             severe_hypo_pct = (sub < 3.0).sum() / count * 100
-            target_pct = ((sub >= 3.9) & (sub <= 10.0)).sum() / count * 100
-            hyper_pct = (sub > 10.0).sum() / count * 100
+            target_pct = ((sub >= self.target_low) & (sub <= self.target_high)).sum() / count * 100
+            hyper_pct = (sub > self.target_high).sum() / count * 100
 
             daily_records.append({
                 "day_name": day,
@@ -69,13 +72,13 @@ class PatternAnalyzer:
             })
         return pd.DataFrame(daily_records)
 
-    def detect_specific_patters(self,
+    def detect_specific_patterns(self,
                                 hypo_threshold_pct: float = 25.0, hyper_threshold_pct: float = 60.0
                                 ) -> list[Dict[str, Any]]:
         hourly_summary = self.df.groupby(["day_name", "hour"])[self.glucose_col].agg(
             count="count",
-            hypo_pct=lambda x: (x < 3.9).sum() / len(x) * 100,
-            hyper_pct=lambda x: (x > 10.0).sum() / len(x) * 100,
+            hypo_pct=lambda x: (x < self.target_low).sum() / len(x) * 100,
+            hyper_pct=lambda x: (x > self.target_high).sum() / len(x) * 100,
         ).reset_index()
 
         alerts = []
